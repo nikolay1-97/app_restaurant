@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "api"
+version = "0.1.0"
+description = ""
+authors = ["nikolay1-97 <nikolay111_connect@mail.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.109.0"
+uvicorn = "^0.26.0"
+alembic = "^1.13.1"
+sqlalchemy = "2.0.25"
+psycopg2-binary = "^2.9.9"
+pydantic = "^2.5.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

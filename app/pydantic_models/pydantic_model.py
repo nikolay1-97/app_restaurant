@@ -11,7 +11,8 @@ class MenuModel(BaseModel):
     Модель для данных о меню.
     """
 
-    menu_name: str
+    title: str
+    description: str
 
 class MenuModelUpdate(BaseModel):
     """
@@ -31,8 +32,8 @@ class SubmenuModel(BaseModel):
     Модель для данных о меню.
     """
 
-    submenu_name: str
-    from_menu: int
+    title: str
+    description: str
 
 
 class SubmenuModelUpdate(BaseModel):
@@ -54,9 +55,9 @@ class DishModel(BaseModel):
     Модель для данных о наименованиях блюд.
     """
 
-    name: str
-    price: float
-    from_submenu: int
+    title: str
+    description: str
+    price: str
 
 
 class DishModelUpdate(BaseModel):

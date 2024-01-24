@@ -1,7 +1,7 @@
 """Файл запуска приложения"""
 
 from fastapi import FastAPI
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from fastapi.encoders import jsonable_encoder
 from starlette import status
 import uvicorn
@@ -28,130 +28,173 @@ def get_application() -> FastAPI:
 application = get_application()
 
 
-@application.post('/create_menu')
+@application.post('/api/v1/menus')
 def create_menu(request: MenuModel):
-    return MenuRepository.create_menu(request.menu_name)
+    return MenuRepository.create_menu(request.title, request.description)
 
 
-@application.patch('/update_menu')
-def update_menu(request: MenuModelUpdate):
+@application.patch('/api/v1/menus/{target_menu_id}')
+def update_menu(request: MenuModel, target_menu_id: str):
     return MenuRepository.update_menu(
-        request.menu_name,
-        request.new_menu_name,
+        request.title,
+        request.description,
+        target_menu_id,
     )
 
 
-@application.get('/get_menu_item/{menu_name}')
-def get_menu_by_name(request: Request, menu_name: str):
-    menu = MenuRepository.get_menu_by_name(menu_name)
+@application.get('/api/v1/menus/{target_menu_id}')
+def get_menu_by_name(request: Request, target_menu_id: str):
+    menu = MenuRepository.get_menu_by_id(target_menu_id)
     if menu:
-        return {'id': menu[0], 'name': menu[1]}
+        return {'id': menu[0],
+                'title': menu[1],
+                'description': menu[2],
+        }
     else:
         raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Меню {menu_name} не существует',
+                detail='menu not found',
         )
     
-@application.delete('/delete_menu/{menu_name}')
-def delete_menu(request: Request, menu_name: str):
-    return MenuRepository.delete_menu(menu_name)
+@application.delete('/api/v1/menus/{target_menu_id}')
+def delete_menu(request: Request, target_menu_id: int):
+    return MenuRepository.delete_menu(target_menu_id)
 
 
-@application.get('/get_menu_list')
+@application.get('/api/v1/menus')
 def get_menu_list(request: Request):
     response = MenuRepository.get_menu_list()
     return response
 
 # Операции с подменю.
 
-@application.post('/create_submenu')
-def create_submenu(request: SubmenuModel):
+@application.post('/api/v1/menus/{target_menu_id}/submenus')
+def create_submenu(request: SubmenuModel, target_menu_id: int):
     return SubMenuRepository.create_submenu(
-        request.submenu_name,
-        request.from_menu,
+        request.title,
+        request.description,
+        target_menu_id,
     )
 
-@application.get('/get_submenu_item/{submenu_name}')
-def get_submenu_item(request: Request, submenu_name: str):
-    submenu = SubMenuRepository.get_submenu_by_name(submenu_name)
+@application.get('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}')
+def get_submenu_item(
+    request: Request,
+    target_menu_id: int,
+    target_submenu_id: int,
+):
+    submenu = SubMenuRepository.get_submenu_by_id(
+        target_submenu_id,
+    )
     
     if submenu:
         return {'id': submenu[0],
-                'name': submenu[1],
-                'from_menu': submenu[2],
+                'title': submenu[1],
+                'description': submenu[2],
         }
     else:
         raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Подменю {submenu_name} не существует',
+                detail='submenu not found',
         )
     
 
-@application.patch('/update_submenu')
-def update_submenu(request: SubmenuModelUpdate):
+@application.patch('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}')
+def update_submenu(request: SubmenuModel, target_menu_id, target_submenu_id):
     return SubMenuRepository.update_submenu(
-        request.submenu_name,
-        request.submenu_new_name,
-        request.new_from_menu
+        request.title,
+        request.description,
+        target_menu_id,
+        target_submenu_id,
     )
 
 
-@application.delete('/delete_submenu/{submenu_name}')
-def delete_submenu(request: Request, submenu_name: str):
-    return SubMenuRepository.delete_submenu(submenu_name)
+@application.delete('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}')
+def delete_submenu(
+    request: Request,
+    target_menu_id: int,
+    target_submenu_id: int,):
+    return SubMenuRepository.delete_submenu(target_submenu_id)
 
 
-@application.get('/get_submenu_list')
-def get_submenu_list(request: Request):
-    return SubMenuRepository.get_submenu_list()
+@application.get('/api/v1/menus/{target_menu_id}/submenus')
+def get_submenu_list(request: Request, target_menu_id: int):
+    return SubMenuRepository.get_submenu_list(target_menu_id)
 
 #Операции с наименованиями блюд.
 
-@application.post('/create_dish')
-def create_dish(request: DishModel):
+@application.post('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes')
+def create_dish(request: DishModel, target_menu_id, target_submenu_id):
     return DishRepository.create_dish(
-        request.name,
+        request.title,
+        request.description,
         request.price,
-        request.from_submenu,
+        target_menu_id,
+        target_submenu_id,
     )
 
 
-@application.get('/get_dish_item/{dish_name}')
-def get_dish_item(request: Request, dish_name: str):
-    dish = DishRepository.get_dish_by_name(dish_name)
+
+@application.get('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes/{target_dish_id}')
+def get_dish_item(
+    request: Request,
+    target_menu_id: int,
+    target_submenu_id: int,
+    target_dish_id: int,
+):
+    dish = DishRepository.get_dish_by_id(target_dish_id)
     
     if dish:
         return dish
     else:
         raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Наименования блюда {dish_name} не существует',
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='dish not found',
         )
      
 
-@application.patch('/update_dish')
-def update_dish(request: DishModelUpdate):
+@application.patch('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes/{target_dish_id}')
+def update_dish(
+    request: DishModel,
+    target_menu_id: int,
+    target_submenu_id: int,
+    target_dish_id: int,
+):
     return DishRepository.update_dish(
-        request.name,
-        request.new_name,
-        request.new_price,
-        request.new_from_submenu,
+        request.title,
+        request.description,
+        request.price,
+        target_menu_id,
+        target_submenu_id,
+        target_dish_id,
     )
 
 
-@application.delete('/delete_dish/{dish_name}')
-def delete_dish(request: Request, dish_name: str):
-    return DishRepository.delete_dish(dish_name)
+@application.delete('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes/{target_dish_id}')
+def delete_dish(
+    request: Request,
+    target_menu_id: int,
+    target_submenu_id: int,
+    target_dish_id: int,
+):
+    return DishRepository.delete_dish(
+        target_menu_id,
+        target_submenu_id,
+        target_dish_id,
+    )
 
 
-@application.get('/get_dishs_list')
-def get_dishs_list(request: Request):
-    return DishRepository.get_dishs_list()
+@application.get('/api/v1/menus/{target_menu_id}/submenus/{target_submenu_id}/dishes')
+def get_dishs_list(
+    request: Request,
+    target_menu_id: int,
+    target_submenu_id: int,
+):
+    return DishRepository.get_dishs_list(target_menu_id, target_submenu_id)
 
 
 if __name__ == '__main__':
     uvicorn.run(
         app=application,
         host='127.0.0.1',
-        port=8080,
+        port=8000,
     )

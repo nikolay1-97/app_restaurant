@@ -13,7 +13,7 @@ class MenuRepository:
     @classmethod
     def get_menu_by_name(cls, menu_name: str):
         exists_menu = cls.SESSION.query(Menu_model).filter(
-            Menu_model.c.name == menu_name,
+            Menu_model.c.title == menu_name,
             ).one_or_none()
         if exists_menu:
             return exists_menu
@@ -21,69 +21,72 @@ class MenuRepository:
     
 
     @classmethod
-    def get_menu_by_id(cls, id: int):
+    def get_menu_by_id(cls, menu_id: int):
         exists_menu = cls.SESSION.query(Menu_model).filter(
-            Menu_model.c.id == id,
+            Menu_model.c.id == menu_id,
             ).one_or_none()
         if exists_menu:
             return exists_menu
         return False
 
     @classmethod
-    def create_menu(cls, menu_name: str):
-        exists_menu = cls.get_menu_by_name(menu_name)
+    def create_menu(cls, title: str, description: str):
+        exists_menu = cls.get_menu_by_name(title)
         if exists_menu:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Меню {menu_name} уже существует',
+                detail=f'Меню {title} уже существует',
             )
         try:
-            query = Menu_model.insert().values(name=menu_name)
+            query = Menu_model.insert().values(title=title, description=description)
             cls.SESSION.execute(query)
             cls.SESSION.commit()
-            return {"detail": f'Позиция успешно добавлена. Имя меню: {menu_name}'}
+            menu = cls.get_menu_by_name(title)
+            return {
+                "id": menu[0],
+                "title": menu[1],
+                "description": menu[2],
+            }
 
         except Exception:
             return {"detail": 'Произошла ошибка при работе с базой данных'}
 
 
     @classmethod
-    def update_menu(cls, menu_name: str, new_menu_name: str):
-        exists_menu = cls.get_menu_by_name(menu_name)
-        exists_new_menu_name = cls.get_menu_by_name(new_menu_name)
-        if exists_new_menu_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Позиция {new_menu_name} уже существует',
-            )
+    def update_menu(cls, title: str, description: str, menu_id: int):
+        exists_menu = cls.get_menu_by_id(menu_id)
 
         if exists_menu:
             try:
                 query = Menu_model.update().where(
-                    Menu_model.c.name == menu_name,
+                    Menu_model.c.id == menu_id,
                 ).values(
-                name=new_menu_name,
+                title=title,
+                description=description,
                 )
                 cls.SESSION.execute(query)
                 cls.SESSION.commit()
-                return {"detail": f'Данные успешно обновлены. Имя меню: {new_menu_name}'}
+                return {
+                    "id": menu_id,
+                    "title": title,
+                    "description": description
+                }
             
             except Exception:
                 return {"detail": 'Произошла ошибка при работе с базой данных'}
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Позиция {menu_name} не найдена',
+                detail="menu not found",
             )
         
     @classmethod
-    def delete_menu(cls, menu_name: str):
-        exists_menu = cls.get_menu_by_name(menu_name)
+    def delete_menu(cls, target_menu_id: int):
+        exists_menu = cls.get_menu_by_id(target_menu_id)
         if exists_menu:
-            menu_id = exists_menu[0]
             try:
                 submenu_of_dishs_list = cls.SESSION.query(Submenu_model).filter(
-                    Submenu_model.c.from_menu == menu_id,
+                    Submenu_model.c.from_menu == target_menu_id,
                     ).all()
                 submenu_id_of_dishs_list = [submenu[0] for submenu in submenu_of_dishs_list]
                 
@@ -91,13 +94,13 @@ class MenuRepository:
                     query = Dish_model.delete().where(Dish_model.c.from_submenu == id)
                     cls.SESSION.execute(query)
 
-                query = Submenu_model.delete().where(Submenu_model.c.from_menu == menu_id)
+                query = Submenu_model.delete().where(Submenu_model.c.from_menu == target_menu_id)
                 cls.SESSION.execute(query)
-                query2 = Menu_model.delete().where(Menu_model.c.name == menu_name)
+                query2 = Menu_model.delete().where(Menu_model.c.id == target_menu_id)
                 cls.SESSION.execute(query2)
                 cls.SESSION.commit()
-                return {"detail": f'Позиция меню {menu_name} и позиции подменю с ключем {menu_id}  и \
-                    соответствующие позиции блюд успешно удалены',
+                return {"status": True,
+                        "message": "The menu has been deleted"
                 }
 
             except Exception:
@@ -105,7 +108,7 @@ class MenuRepository:
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Наименование меню {menu_name} не найдено',
+                detail=f'menu not found',
             )
         
     @classmethod
@@ -137,9 +140,10 @@ class MenuRepository:
         for i in range(len(menu_list)):
             response[menu_list[i][1]] = {
                 "id": menu_list[i][0],
-                "name": menu_list[i][1],
+                "title": menu_list[i][1],
+                "description": menu_list[i][2],
                 "count_of_submenu": list_of_count_of_submenu[i],
-                "count_of_dish": list_of_count_of_dish[i],
+                "count_of_dishs": list_of_count_of_dish[i],
             }
         return response
         
@@ -151,23 +155,23 @@ class SubMenuRepository:
     @classmethod
     def get_submenu_by_name(cls, submenu_name: str):
         exists_submenu = cls.SESSION.query(Submenu_model).filter(
-            Submenu_model.c.name == submenu_name,
+            Submenu_model.c.title == submenu_name,
             ).one_or_none()
         if exists_submenu:
             return exists_submenu
         return False
     
     @classmethod
-    def get_submenu_by_id(cls, id: int):
+    def get_submenu_by_id(cls, submenu_id: int):
         exists_submenu = cls.SESSION.query(Submenu_model).filter(
-            Submenu_model.c.id == id,
+            Submenu_model.c.id == submenu_id,
             ).one_or_none()
         if exists_submenu:
             return exists_submenu
         return False
     
     @classmethod
-    def create_submenu(cls, submenu_name: str, from_menu: int):
+    def create_submenu(cls, submenu_name: str, description: str, from_menu: int):
         exists_submenu = cls.get_submenu_by_name(submenu_name)
         if exists_submenu:
             raise HTTPException(
@@ -183,12 +187,18 @@ class SubMenuRepository:
             )
         try:
             query = Submenu_model.insert().values(
-                name=submenu_name,
+                title=submenu_name,
+                description=description,
                 from_menu=from_menu,
             )
             cls.SESSION.execute(query)
             cls.SESSION.commit()
-            return {"detail": f'Позиция успешно добавлена. Имя меню: {submenu_name}'}
+            menu = cls.get_submenu_by_name(submenu_name)
+            return {
+                "id": menu[0],
+                "title": submenu_name,
+                "description": description,
+            }
 
         except Exception:
             return {"detail": 'Произошла ошибка при работе с базой данных'}
@@ -197,56 +207,55 @@ class SubMenuRepository:
     @classmethod
     def update_submenu(
         cls,
-        submenu_name: str,
-        new_submenu_name: str,
-        new_from_menu: int,
+        title: str,
+        description: str,
+        from_menu: int,
+        submenu_id: int,
     ):
-        exists_submenu = cls.get_submenu_by_name(submenu_name)
-        exists_new_submenu_name = cls.get_submenu_by_name(new_submenu_name)
-        exists_new_from_menu = MenuRepository.get_menu_by_id(new_from_menu)
+        exists_submenu = cls.get_submenu_by_id(submenu_id)
+        exists_new_from_menu = MenuRepository.get_menu_by_id(from_menu)
         if not exists_new_from_menu:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Меню с id {new_from_menu} не существует',
-            )
-        if exists_new_submenu_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Подменю {new_submenu_name} уже существует',
+                detail=f'Меню с id {from_menu} не существует',
             )
         if exists_submenu:
             try:
                 query = Submenu_model.update().where(
-                    Submenu_model.c.name == submenu_name,
+                    Submenu_model.c.id == submenu_id,
                 ).values(
-                name=new_submenu_name,
-                from_menu=new_from_menu
+                title=title,
+                description=description,
+                from_menu=from_menu
                 )
                 cls.SESSION.execute(query)
                 cls.SESSION.commit()
-                return {"detail": f'Данные успешно обновлены. Имя меню: {new_submenu_name}'}
+                return {
+                    "id": submenu_id,
+                    "title": title,
+                    "description": description,
+                }
             
             except Exception:
-                return {"detail": f'Произошла ошибка при работе с базой данных'}
+                return {"detail": 'Произошла ошибка при работе с базой данных'}
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Подменю {submenu_name} не найдено',
+                detail=f'submenu not found',
             )
 
     @classmethod
-    def delete_submenu(cls, submenu_name: str):
-        exists_submenu = cls.get_submenu_by_name(submenu_name)
+    def delete_submenu(cls, target_submenu_id: int):
+        exists_submenu = cls.get_submenu_by_id(target_submenu_id)
         if exists_submenu:
-            submenu_id = exists_submenu[0]
             try:
-                query = Dish_model.delete().where(Dish_model.c.from_submenu == submenu_id)
+                query = Dish_model.delete().where(Dish_model.c.from_submenu == target_submenu_id)
                 cls.SESSION.execute(query)
-                query2 = Submenu_model.delete().where(Submenu_model.c.name == submenu_name)
+                query2 = Submenu_model.delete().where(Submenu_model.c.id == target_submenu_id)
                 cls.SESSION.execute(query2)
                 cls.SESSION.commit()
-                return {"detail": f'Позиция подменю {submenu_name} и \
-                    позиции наименований блюд с ключем {submenu_id} успешно удалены',
+                return {"status": True,
+                        "message": "The submenu has been deleted",
                 }
                     
             except Exception:
@@ -254,11 +263,11 @@ class SubMenuRepository:
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Наименование подменю {submenu_name} не найдено',
+                detail=f'submenu not found',
             )
         
     @classmethod
-    def get_submenu_list(cls):
+    def get_submenu_list(cls, from_menu: int):
         response = {}
         submenu_list = cls.SESSION.query(Submenu_model).all()
         list_id_of_submenu = [submenu[0] for submenu in submenu_list]
@@ -270,8 +279,8 @@ class SubMenuRepository:
 
             response[submenu_list[i][1]] = {
                 "id": submenu_list[i][0],
-                "name": submenu_list[i][1],
-                "from_menu": submenu_list[i][2],
+                "title": submenu_list[i][1],
+                "description": submenu_list[i][2],
                 "count_of_dishs": len(dish_list),
             }
         return response
@@ -286,20 +295,41 @@ class DishRepository:
     @classmethod
     def get_dish_by_name(cls, dish_name: str):
         exists_dish = cls.SESSION.query(Dish_model).filter(
-            Dish_model.c.name == dish_name,
+            Dish_model.c.title == dish_name,
             ).one_or_none()
         if exists_dish:
             exists_dish = {
                 "id": exists_dish[0],
-                "name": exists_dish[1],
-                "price": round(exists_dish[2], 2),
-                "from_submenu": exists_dish[3],
+                "title": exists_dish[1],
+                "description": exists_dish[2],
+                "price": round(exists_dish[3], 2),
             }
             return exists_dish
         return False
     
     @classmethod
-    def create_dish(cls, dish_name: str, price: float, from_submenu: int):
+    def get_dish_by_id(cls, dish_id: int):
+        exists_dish = cls.SESSION.query(Dish_model).filter(
+            Dish_model.c.id == dish_id,
+            ).one_or_none()
+        if exists_dish:
+            exists_dish = {
+                "id": exists_dish[0],
+                "title": exists_dish[1],
+                "description": exists_dish[2],
+                "price": round(exists_dish[3], 2),
+            }
+            return exists_dish
+        return False
+    
+    @classmethod
+    def create_dish(cls,
+                    dish_name: str,
+                    description: str,
+                    price: str,
+                    from_menu: int,
+                    from_submenu: int,
+    ):
         exists_dish = cls.get_dish_by_name(dish_name)
         if exists_dish:
             raise HTTPException(
@@ -313,16 +343,16 @@ class DishRepository:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Подменю с id {from_submenu} не существует',
             )
-        
         try:
             query = Dish_model.insert().values(
-                name=dish_name,
-                price=price,
+                title=dish_name,
+                description=description,
+                price=float(price),
                 from_submenu=from_submenu,
             )
             cls.SESSION.execute(query)
             cls.SESSION.commit()
-            return {"detail": f'Позиция успешно добавлена. Имя наименования блюда: {dish_name}'}
+            return cls.get_dish_by_name(dish_name)
 
         except Exception:
             return {"detail": 'Произошла ошибка при работе с базой данных'}
@@ -331,74 +361,83 @@ class DishRepository:
     def update_dish(
         cls,
         dish_name: str,
-        new_dish_name: str,
-        new_price: float,
-        new_from_submenu: str,
+        description: str,
+        price: str,
+        from_menu: int,
+        from_submenu: int,
+        dish_id: int,
     ):
-        exists_dish = cls.get_dish_by_name(dish_name)
-        exists_new_dish_name = cls.get_dish_by_name(new_dish_name)
-        exists_submenu = SubMenuRepository.get_submenu_by_id(new_from_submenu)
+        exists_dish = cls.get_dish_by_id(dish_id)
+        exists_submenu = SubMenuRepository.get_submenu_by_id(from_submenu)
         if not exists_submenu:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Подменю с id {new_from_submenu} не существует',
+                detail=f'Подменю с id {from_submenu} не существует',
             )
 
-        if exists_new_dish_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Наименование блюда {new_dish_name} уже существует',
-            )
         if exists_dish:
             try:
                 query = Dish_model.update().where(
-                    Dish_model.c.name == dish_name,
+                    Dish_model.c.id == dish_id,
                 ).values(
-                name=new_dish_name,
-                price=new_price,
-                from_submenu=new_from_submenu,
+                title=dish_name,
+                description=description,
+                price=float(price),
                 )
                 cls.SESSION.execute(query)
                 cls.SESSION.commit()
-                return {"detail": f'Данные успешно обновлены. Имя наименования блюда: {new_dish_name}'}
+                return {
+                    "id": dish_id,
+                    "title": dish_name,
+                    "description": description,
+                    "price": round(float(price), 2),
+                }
             
             except Exception:
                 return {"detail": 'Произошла ошибка при работе с базой данных'}
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Наименование блюда {dish_name} не найдено',
+                detail=f'dish not found',
             )
 
     @classmethod
-    def delete_dish(cls, dish_name: str):
-        exists_dish = cls.get_dish_by_name(dish_name)
+    def delete_dish(
+        cls,
+        target_menu_id: int,
+        target_submenu_id: int,
+        target_dish_id: int,
+    ):
+        exists_dish = cls.get_dish_by_id(target_dish_id)
         if exists_dish:
             try:
-                query = Dish_model.delete().where(Dish_model.c.name == dish_name)
+                query = Dish_model.delete().where(Dish_model.c.id == target_dish_id)
                 cls.SESSION.execute(query)
                 cls.SESSION.commit()
-                return {"detail": f'Позиция наименования блюда {dish_name} успешно удалена'}
+                return {
+                    "status": True,
+                    "message": "The dish has been deleted"
+                }
                     
             except Exception:
                 return {"detail": 'Произошла ошибка при работе с базой данных'}
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f'Наименование блюда {dish_name} не найдено',
+                detail=f'dish not found',
             )
 
     @classmethod
-    def get_dishs_list(cls):
+    def get_dishs_list(cls, from_menu: int, from_submenu: int):
         response = {}
         dish_list = cls.SESSION.query(Dish_model).all()
         
         for i in range(len(dish_list)):
             response[dish_list[i][1]] = {
                 "id": dish_list[i][0],
-                "name": dish_list[i][1],
-                "price": round(dish_list[i][2], 2),
-                "from_submenu": dish_list[i][3],
+                "title": dish_list[i][1],
+                "description": dish_list[i][2],
+                "price": round(dish_list[i][3], 2),
             }
 
         return response

@@ -11,6 +11,7 @@ PASSWORD = config('PASSWORD', cast=str)
 DB_HOST = config('DB_HOST', cast=str)
 DB_PORT = config('DB_PORT', cast=str)
 DB_NAME = config('DB_NAME', cast=str)
+DB_URL = f'postgresql+psycopg2://{DB_USER}:{PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 
 
 

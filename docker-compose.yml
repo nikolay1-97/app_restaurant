@@ -1,0 +1,42 @@
+version: "3.7"
+services:
+  db:
+    image: postgres:15
+    container_name: db_app
+    env_file:
+      - .env-non-dev
+
+  test_db:
+    image: postgres:15
+    container_name: db_tests
+    env_file:
+      - .env-tests
+
+  redis:
+    image: redis:7
+    container_name: redis_app
+
+  app:
+    build:
+      context: .
+    env_file:
+      - .env-non-dev
+    container_name: fastapi_app
+    command: ["/fastapi_app/scripts_for_docker/app.sh"]
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+      - redis
+
+  tests:
+    build:
+      context: .
+    env_file:
+      - .env-tests
+    container_name: tests
+    command: ["/fastapi_app/scripts_for_docker/tests.sh"]
+    depends_on:
+      - test_db
+      - redis
+      

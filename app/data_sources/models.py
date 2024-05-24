@@ -1,16 +1,32 @@
-"""Модели"""
+"""Модели таблиц базы данных."""
 
-from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, ForeignKey, Float
-from sqlalchemy.orm import Session
+from sqlalchemy import (
+    MetaData,
+    Table,
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    Float,
+)
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
 from config import DB_URL
 
 
 metadata = MetaData()
-engine = create_engine(DB_URL)
+engine = create_async_engine(DB_URL)
+async_session_maker = sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
 
-def connect_db():
-    session = Session(bind=engine.connect())
-    return session
+
+async def get_async_session():
+    async with async_session_maker() as session:
+        yield session
 
 
 Menu_model = Table(
@@ -18,7 +34,7 @@ Menu_model = Table(
     metadata,
     Column('id', Integer, primary_key=True, index=True),
     Column('title', String, nullable=False, unique=True),
-    Column("description", String, nullable=False, unique=True),
+    Column("description", String, nullable=False),
 )
 
 Submenu_model = Table(
@@ -26,15 +42,15 @@ Submenu_model = Table(
     metadata,
     Column('id', Integer, primary_key=True, index=True),
     Column('title', String, nullable=False, unique=True),
-    Column('description', String, nullable=False, unique=True),
+    Column('description', String, nullable=False),
     Column('from_menu', Integer, ForeignKey("menu.id")),
 )
 
 Dish_model = Table(
-   'dish',
+    'dish',
     metadata,
     Column('id', Integer, primary_key=True, index=True),
-    Column('title', String, nullable=False),
+    Column('title', String, nullable=False, unique=True),
     Column('description', String, nullable=False),
     Column('price', Float, nullable=False),
     Column('from_submenu', Integer, ForeignKey("submenu.id")),
